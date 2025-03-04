@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import os
 
-dataset_path = "C://Users/farah/Desktop/infant_obstruction_model/dataset/labels.csv"
-image_folder = "C://Users/farah/Desktop/infant_obstruction_model/dataset/images/"
+dataset_path = "/home/grp4pi/AIFiles/infant_obstruction_model/dataset/labels.csv"
+image_folder = "/home/grp4pi/AIFiles/infant_obstruction_model/dataset/images/"
 
 df = pd.read_csv(dataset_path)
 print(df.head())

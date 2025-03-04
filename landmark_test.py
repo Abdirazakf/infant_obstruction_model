@@ -2,8 +2,8 @@ import cv2
 import numpy as np
 import os
 
-prototxt_path = "C://Users/farah/Desktop/infant_obstruction_model/models/deploy.prototxt"
-model_path = "C://Users/farah/Desktop/infant_obstruction_model/models/res10_300x300_ssd_iter_140000.caffemodel"
+prototxt_path = "/home/grp4pi/AIFiles/infant_obstruction_model/models/deploy.prototxt"
+model_path = "/home/grp4pi/AIFiles/infant_obstruction_model/models/res10_300x300_ssd_iter_140000.caffemodel"
 
 net = cv2.dnn.readNetFromCaffe(prototxt_path, model_path)
 
@@ -50,7 +50,7 @@ def is_face_down(landmarks):
     return len(visible_landmarks) < 3  # If less than 3 key points detected assume face down
 
 
-test_image_path = "C://Users/farah/Desktop/infant_obstruction_model/dataset/fd/youtube-06.png"
+test_image_path = "/home/grp4pi/AIFiles/infant_obstruction_model/dataset/fd/youtube-06.png"
 landmarks, output_image = detect_landmarks_opencv(test_image_path)
 
 face_down = is_face_down(landmarks)
