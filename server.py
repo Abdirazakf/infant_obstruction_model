@@ -1,5 +1,4 @@
 import os
-import sys
 import cv2
 import numpy as np
 import insightface
@@ -7,9 +6,11 @@ from insightface.app import FaceAnalysis
 import paho.mqtt.client as mqtt
 import time
 
+#  Load InsightFace model
 app = FaceAnalysis(providers=['CPUExecutionProvider'])
 app.prepare(ctx_id=0, det_size=(640, 640))
 
+#  MQTT Setup
 MQTT_BROKER = "693754a8789c4419b4d760a2653cd86e.s1.eu.hivemq.cloud"
 MQTT_PORT = 8883
 MQTT_TOPIC = "baby_monitor/obstruction"
@@ -19,36 +20,38 @@ mqtt_client.username_pw_set("gp4pi", "Group4pi")
 mqtt_client.tls_set()
 mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
 
-stream_url = "rtsp://192.168.1.144:8554/cam1"
-cap = cv2.VideoCapture(stream_url)
-
+cap = cv2.VideoCapture(1)
 frame_count = 0
 last_face_seen_time = None
 face_up_detected = False  # True if Face Up was detected
 face_down_alert_sent = False  # Prevents repeated alerts
 
-FACE_MISSING_THRESHOLD = 3  # Seconds to consider Face Down
+FACE_MISSING_THRESHOLD = 3  # Seconds before considering Face Down
 
+# Create directory for saving detections
 if not os.path.exists("detections"):
     os.makedirs("detections")
 
 def detect_face_and_position(frame):
+    """Detects face and determines baby's head position."""
     global last_face_seen_time, face_up_detected, face_down_alert_sent
 
     faces = app.get(frame)
     if len(faces) == 0:
         if face_up_detected and last_face_seen_time and (time.time() - last_face_seen_time > FACE_MISSING_THRESHOLD):
             if not face_down_alert_sent:
-                face_down_alert_sent = True  # Prevent spamming
+                face_down_alert_sent = True  # Prevent repeated alerts
                 return "Face Down", None
         return None, None
 
     last_face_seen_time = time.time()  # Reset timer when face is detected
     face_down_alert_sent = False  # Reset Face Down alert flag when face reappears
+
     face = faces[0]
     bbox = face.bbox.astype(int)
 
-    landmarks = face.kps  # 5 key facial landmarks
+    # Extract key facial landmarks
+    landmarks = face.kps
     left_eye, right_eye, nose, left_mouth, right_mouth = landmarks
 
     if nose[1] > left_eye[1] and nose[1] > right_eye[1]:  
@@ -62,26 +65,28 @@ def detect_face_and_position(frame):
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
-        print("Ignoring empty frame...")
+        print(" Ignoring empty frame...")
         continue
 
     frame_count += 1
     if frame_count % 5 != 0:
         continue
 
+    # Detect face and determine head position
     position, bbox = detect_face_and_position(frame)
 
     if position == "Face Down":
         print(" ALERT: Baby is face down!")  # Debugging
-        mqtt_client.publish(MQTT_TOPIC, " ALERT: Baby is face down!")
+        mqtt_client.publish(MQTT_TOPIC, f"ALERT: Baby is face down! {time.strftime('%Y-%m-%d %H:%M:%S')}")
     elif position == "Side Sleeping":
         print("Warning: Baby is sleeping on its side.")  # Debugging
-        mqtt_client.publish(MQTT_TOPIC, "Warning: Baby is sleeping on its side.")
+        mqtt_client.publish(MQTT_TOPIC, f"⚠️ Warning: Baby is sleeping on its side. {time.strftime('%Y-%m-%d %H:%M:%S')}")
     elif position == "Face Up":
         print(" Baby is sleeping safely.")  # Debugging
     elif position is None:
         print(" No baby detected.")  # Debugging
 
+    # Save detection frame if face is found
     if bbox is not None:
         cv2.rectangle(frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2)
         cv2.putText(frame, position, (bbox[0], bbox[1] - 10),
@@ -89,6 +94,6 @@ while cap.isOpened():
 
         filename = f"detections/frame_{frame_count}.jpg"
         cv2.imwrite(filename, frame)
-        print(f"Saved: {filename}")
+        print(f" Saved: {filename}")
 
 cap.release()
